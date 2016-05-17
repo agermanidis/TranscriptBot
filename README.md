@@ -4,7 +4,7 @@
 
 ### Introduction
 
-TranscriptBot is a command-line utility that listens to the sound input from your mic, transcribes each sentence it hears, and posts it to Slack in real-time. It lets people on your team who are not physically present follow along a meeting or conversation without having to join in a video conference call.
+TranscriptBot is a command-line utility that listens to the sound input from your mic, transcribes each sentence it hears using the Google Web Speech API, and posts it to Slack in real-time. It lets people on your team who are not physically present follow along a meeting or conversation without having to join in a video conference call.
 
 ### Installation
 
@@ -38,16 +38,15 @@ Usage:
   transcriptbot hooks remove <hook-name>
   transcriptbot hooks use <hook-name>
   transcriptbot hooks list
-  transcriptbot list_devices
+  transcriptbot list_audio_devices
   transcriptbot use_name <name>
 
 Options:
   --version                        Show version.
   -h, --help                       Show this screen.
-  -i, --audio-device               Specify audio device to record with.
-  -l, --list-audio-devices         List available audio devices.
+  -i, --audio-device               Specify audio device to record with (default = 0).
   -k, --hook-url                   Hook URL to use to post transcription to Slack.
-  -n, --name                       Name of the mic to appear on Slack (default = your OS user name)
+  -n, --name                       Name to appear on Slack (default = your OS user name).
   --no-slack                       Print the transcripts but do not post them to Slack.
 ```
 
