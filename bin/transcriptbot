@@ -1,0 +1,128 @@
+#!/usr/bin/env python
+"""
+transcriptbot - Real-time voice transcription Slack bot
+
+Usage:
+  transcriptbot record [-i <audio-device>] [--no-slack] [-k <hook-url>] [-n <name>]
+  transcriptbot hooks add <hook-name> <hook-url>
+  transcriptbot hooks remove <hook-name>
+  transcriptbot hooks use <hook-name>
+  transcriptbot hooks list
+  transcriptbot list_audio_devices
+  transcriptbot use_name <name>
+
+Options:
+  --version                        Show version.
+  -h, --help                       Show this screen.
+  -i, --audio-device               Specify audio device to record with (default = 0).
+  -k, --hook-url                   Hook URL to use to post transcription to Slack.
+  -n, --name                       Name to appear on Slack (default = your OS user name).
+  --no-slack                       Print the transcripts but do not post them to Slack.
+"""
+VERSION = "TranscriptBot v0.1"
+
+import sys
+import errno
+from multiprocessing import Queue, Process
+from threading import Thread
+
+import sounddevice
+from docopt import docopt
+from tabulate import tabulate
+
+from transcriptbot.db import DB
+from transcriptbot.recorder import Recorder
+from transcriptbot.transcriber import transcriber_thread
+from transcriptbot.slack import slack_thread
+
+
+def main(args):
+    db = DB.load()
+
+    if args['record']:
+        audio_device = int(args.get('<audio-device>') or 0)
+        name = args.get('<name>') or db.name
+        hook = args.get('<hook>', db.active_hook)
+        no_slack_mode = args.get('--no-slack', False)
+
+        if hook is None:
+            print 'No hooks in db. Add one with:'
+            print '$ transcriptbot hooks add <hook-name> <hook-url>'
+            return errno.EINVAL
+
+        print '--------------------------------------'
+        print VERSION
+        print "Audio device............ %d" % audio_device
+        print "Name.................... %s" % name
+        print "Hook.................... %s (%s)" % (hook.name, hook.url)
+        print "No Slack Mode........... %r" % no_slack_mode
+        print '--------------------------------------'
+
+        record_q = Queue()
+        process_q = Queue()
+
+        if not no_slack_mode:
+            t1 = Thread(target=slack_thread, args=(hook.url, name, process_q))
+            t1.daemon = True
+            t1.start()
+
+        t2 = Thread(target=transcriber_thread, args=(record_q, process_q))
+        t2.daemon = True
+        t2.start()
+
+        rec = Recorder(audio_device=audio_device)
+        try:
+            rec.record_and_enqueue(record_q)
+        except KeyboardInterrupt:
+            pass
+
+    elif args['hooks']:
+        if args['add']:
+            if db.add_hook(args['<hook-name>'], args['<hook-url>']):
+                print "Hook added: %s" % args['<hook-name>']
+            else:
+                print "Hook already exists: %s" % args['<hook-name>']
+                return errno.EEXIST
+
+        elif args['remove']:
+            if db.remove_hook(args['<hook-name>']):
+                print "Hook removed: %s" % args['<hook-name>']
+            else:
+                print "Hook not found: %s" % args['<hook-name>']
+                return errno.EINVAL
+
+        elif args['use']:
+            hook = db.get_hook(args['<hook-name>'])
+            if not hook:
+                print "Hook not found: %s" % args['<hook-name>']
+                return errno.EINVAL
+            db.set_active_hook(hook)
+            print 'Active hook is now: %s' % db.active_hook.name
+
+        elif args['list']:
+            if not len(db.hooks):
+                print 'No hooks in db. Add one with:'
+                print '$ transcriptbot hooks add <hook-name> <hook-url>'
+            else:
+                db.print_hooks()
+
+    elif args['list_audio_devices']:
+        input_devices = sounddevice.query_devices(kind='input')
+        if type(input_devices) == dict:
+            input_devices = [input_devices]
+        to_print = []
+        for i, d in enumerate(input_devices):
+            device_id = str(d['hostapi'])
+            if i == 0:
+                device_id += " (DEFAULT)"
+            to_print.append([device_id, d['name']])
+        print tabulate(to_print, headers=["ID", "Name"], tablefmt="grid")
+
+    elif args['use_name']:
+        db.name = args['<name>']
+        db.save()
+        print "New name: %s" % db.name
+
+if __name__ == '__main__':
+    args = docopt(__doc__, version=VERSION)
+    sys.exit(main(args))
