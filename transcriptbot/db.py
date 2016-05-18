@@ -2,8 +2,19 @@ import os
 import getpass
 import json
 import errno
+import re
 
 from tabulate import tabulate
+
+
+URL_REGEX = re.compile(
+        r'^(?:http|ftp)s?://' # http:// or https://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
+        r'localhost|' #localhost...
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
+        r'(?::\d+)?' # optional port
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+HOOK_URL_SUFFIX_REGEX = re.compile("T([A-z0-9]){8}\/B([A-z0-9]){8}\/([A-z0-9]){24}\/?$")
 
 
 def mkdir_p(path):
@@ -14,6 +25,17 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+
+def validate_hook_url(url):
+    if not URL_REGEX.match(url):
+        return False
+    if not url.startswith('https://hooks.slack.com/services/'):
+        return False
+    url = url.split('https://hooks.slack.com/services/')[1]
+    if not HOOK_URL_SUFFIX_REGEX.match(url):
+        return False
+    return True
 
 
 class DB(object):
@@ -62,7 +84,7 @@ class DB(object):
                 return hook
 
     def add_hook(self, name, url):
-        if name in self.hook_names:
+        if not validate_hook_url(url):
             return False
         hook = Hook(name, url)
         self.hooks.append(hook)

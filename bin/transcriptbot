@@ -78,11 +78,13 @@ def main(args):
 
     elif args['hooks']:
         if args['add']:
+            if args['<hook-name>'] in db.hook_names:
+                print "Hook already exists: %s" % args['<hook-name>']
+                return errno.EEXIST
             if db.add_hook(args['<hook-name>'], args['<hook-url>']):
                 print "Hook added: %s" % args['<hook-name>']
             else:
-                print "Hook already exists: %s" % args['<hook-name>']
-                return errno.EEXIST
+                print "Hook URL has incorrect format: %s" % args['<hook-url>']
 
         elif args['remove']:
             if db.remove_hook(args['<hook-name>']):
