@@ -9,6 +9,7 @@ TranscriptBot is a command-line utility that listens to the sound input from you
 ### Installation
 
 1. Install ffmpeg: `brew install ffmpeg` (Mac OS X) or `apt-get install ffmpeg` (Ubuntu).
+2. Install portaudio: `brew install portaudio` (Mac OS X) or `apt-get install portaudio19-dev` (Ubuntu).
 2. Install TranscriptBot: `pip install transcriptbot`
 
 ### Setting up an incoming webhook for your channel
