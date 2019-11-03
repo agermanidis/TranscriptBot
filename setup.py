@@ -15,7 +15,7 @@ setup(
     packages=['transcriptbot'],
     scripts=['bin/transcriptbot'],
     install_requires=[
-        'requests==2.3.0',
+        'requests==2.20.0',
         'tabulate==0.7.5',
         'sounddevice==0.3.3',
         'PyAudio==0.2.7',
